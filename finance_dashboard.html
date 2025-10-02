@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Finance Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Finance Dashboard</h1>
+
+    <!-- Inputs for user and year -->
+    <h2>Enter User ID</h2>
+    <input type="text" id="userId" placeholder="Type User ID here">
+
+    <h2>Enter Year</h2>
+    <input type="text" id="year" placeholder="Type Year here">
+
+    <br><br>
+
+    <!-- File upload button -->
+    <input type="file" id="fileInput">
+    <button id="uploadBtn">Upload Excel File</button>
+
+    <br><br>
+
+    <!-- Empty table area -->
+    <h2>Financial Records</h2>
+    <table id="recordsTable" border="1" style="width:50%; margin-top:10px;">
+        <thead>
+            <tr>
+                <th>Month</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody id="recordsBody">
+            <!-- Data will go here later -->
+        </tbody>
+    </table>
+
+    <!-- Canvas for chart -->
+    <h2>Monthly Chart</h2>
+    <canvas id="chartCanvas" width="600" height="300" style="margin-top:20px;"></canvas>
+
+    <script>
+        // Grabbing HTML elements
+        const IDElement = document.getElementById('userId');
+        const yearElement = document.getElementById('year');
+        const buttonElement = document.getElementById('uploadBtn');
+        const fileElement = document.getElementById('fileInput');
+
+        // When the user clicks the upload button
+        uploadBtn.addEventListener('click', function() {
+            const file = fileElement.files[0];   // Gets the chosen file
+            const userId = IDElement.value;      // Gets User ID
+            const year = yearElement.value;      // Gets Year
+
+            // validation
+            if (!file) {
+                alert("Please select a file");
+                return;
+            }
+
+            if (!userId || !year) {
+                alert("User ID or Year has not been entered");
+                return;
+            }
+
+            // Prepares file for sending
+            const data = new FormData();
+            data.append('file', file);
+
+            // Send file to backend
+            fetch(`http://127.0.0.1:5000/api/finances/upload/${userId}/${year}`, {
+                method: 'POST',
+                body: data
+            })
+            .then(resp => resp.json())
+            .then(result => {
+                if (result.error) {
+                    alert("Error: " + result.error);
+                } else {
+                    alert(result.message);
+                    // After successful upload, fetch and display data
+                    displayData(userId, year);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("There has been an error during upload.");
+            });
+        });
+
+        // Function to fetch data and update table + chart
+        function displayData(userId, year) {
+            fetch(`http://127.0.0.1:5000/api/finances/${userId}/${year}`)
+            .then(function(resp) {
+                return resp.json();
+            })
+            .then(function(records) {
+                // Fill table
+                const tbody = document.getElementById('recordsBody');
+                tbody.innerHTML = "";  // Clear old data
+
+                const months = [];
+                const amounts = [];
+
+                // Loop through each record using foreach
+                records.forEach(function(record) {
+                    // Add table row
+                    const row = document.createElement('tr');
+                    const monthCell = document.createElement('td');
+                    const amountCell = document.createElement('td');
+
+                    monthCell.textContent = record.month;
+                    amountCell.textContent = record.amount;
+
+                    row.appendChild(monthCell);
+                    row.appendChild(amountCell);
+                    tbody.appendChild(row);
+
+                    // Save data for chart
+                    months.push(record.month);
+                    amounts.push(record.amount);
+                });
+
+                // Fill chart
+                const ctx = document.getElementById('chartCanvas').getContext('2d');
+
+                // Destroy previous chart if it exists
+                if (window.myChart) {
+                    window.myChart.destroy();
+                }
+
+                window.myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: months,
+                        datasets: [{
+                            label: "Monthly Amount for " + year,
+                            data: amounts,
+                            backgroundColor: 'green'
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+
+            })
+            .catch(function(error) {
+                console.error(error);
+                alert("Failed to fetch financial data.");
+            });
+        }
+    </script>
+</body>
+</html>
+
+
+
+
